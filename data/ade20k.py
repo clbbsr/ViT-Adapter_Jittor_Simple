@@ -64,7 +64,7 @@ class ADE20KDataset(jt.dataset.Dataset):
         ann = Image.open(ann_path)
         ann = np.array(ann, dtype=np.int64)
 
-        # 减少零标签 (ADE20K的0是背景，需要减1)
+        # 减少零标签
         if self.reduce_zero_label:
             ann = ann - 1
             ann[ann == -1] = self.ignore_index
@@ -73,9 +73,10 @@ class ADE20KDataset(jt.dataset.Dataset):
         if self.transform:
             img, ann = self.transform(img, ann)
 
-        # 归一化 (ImageNet统计)
+        # 归一化
         mean = np.array([123.675, 116.28, 103.53], dtype=np.float32)
         std = np.array([58.395, 57.12, 57.375], dtype=np.float32)
+        img = img.astype(np.float32)
         img = (img - mean) / std
 
         # 转换为CHW格式

@@ -10,27 +10,29 @@ class SimpleTrainTransform:
         self.size = size
 
     def __call__(self, img, mask):
-        # 1. 缩放到固定大小 (简化：直接resize)
-        img = Image.fromarray(img).resize((self.size, self.size), Image.BILINEAR)
+        # 1. 确保mask是正确的数据类型
+        if isinstance(mask, np.ndarray):
+            if mask.dtype == np.int64:
+                mask = mask.astype(np.uint8)
+
+        # 2. 缩放到固定大小
+        img = Image.fromarray(img.astype(np.uint8)).resize((self.size, self.size), Image.BILINEAR)
         mask = Image.fromarray(mask).resize((self.size, self.size), Image.NEAREST)
 
-        # 2. 随机水平翻转
+        # 3. 随机水平翻转
         if random.random() > 0.5:
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
             mask = mask.transpose(Image.FLIP_LEFT_RIGHT)
 
-        # 3. 随机亮度调整 (简化版)
+        # 4. 随机亮度调整
         if random.random() > 0.5:
-            img = np.array(img)
+            img = np.array(img).astype(np.float32)
             brightness_factor = random.uniform(0.8, 1.2)
             img = img * brightness_factor
             img = np.clip(img, 0, 255).astype(np.uint8)
             img = Image.fromarray(img)
-        else:
-            img = np.array(img)
-            img = Image.fromarray(img)
 
-        return np.array(img), np.array(mask)
+        return np.array(img), np.array(mask, dtype=np.int64) 
 
 
 class SimpleValTransform:
@@ -40,8 +42,12 @@ class SimpleValTransform:
         self.size = size
 
     def __call__(self, img, mask):
+        # 转换数据类型
+        if isinstance(mask, np.ndarray) and mask.dtype == np.int64:
+            mask = mask.astype(np.uint8)
+
         # 只做resize
-        img = Image.fromarray(img).resize((self.size, self.size), Image.BILINEAR)
+        img = Image.fromarray(img.astype(np.uint8)).resize((self.size, self.size), Image.BILINEAR)
         mask = Image.fromarray(mask).resize((self.size, self.size), Image.NEAREST)
 
-        return np.array(img), np.array(mask)
+        return np.array(img), np.array(mask, dtype=np.int64)
