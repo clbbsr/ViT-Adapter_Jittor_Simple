@@ -1,17 +1,10 @@
 import jittor as jt
 import pickle
+import numpy as np
 
 
 def load_deit_weights(model, checkpoint_path):
-    """加载DeiT预训练权重
-
-    Args:
-        model: Jittor模型
-        checkpoint_path: PyTorch权重路径 (.pth 或 .pkl)
-
-    Returns:
-        加载权重后的模型
-    """
+    """加载DeiT预训练权重（修正版）"""
     print(f"Loading DeiT weights from {checkpoint_path}")
 
     # 加载权重文件
@@ -31,34 +24,29 @@ def load_deit_weights(model, checkpoint_path):
     else:
         state_dict = checkpoint
 
-    # 处理键名
-    new_state_dict = {}
-    model_state_dict = model.state_dict()
+    # 获取模型参数
+    model_params = dict(model.named_parameters())
 
-    for k, v in state_dict.items():
-        # 移除不必要的前缀
-        if k.startswith('module.'):
-            k = k[7:]
-        if k.startswith('backbone.'):
-            k = k[9:]
-
-        # 只加载backbone相关的权重
-        if k in model_state_dict:
-            # 检查形状是否匹配
-            if model_state_dict[k].shape == v.shape:
-                new_state_dict[k] = v
-                print(f"  ✓ {k} -> {v.shape}")
+    loaded_count = 0
+    for name, param in model_params.items():
+        # 构建对应的权重键名
+        key = name
+        if key in state_dict:
+            # 转换为numpy再转换为jittor
+            if isinstance(state_dict[key], jt.Var):
+                weights = state_dict[key].numpy()
+            elif isinstance(state_dict[key], np.ndarray):
+                weights = state_dict[key]
             else:
-                print(f"  ✗ {k} shape mismatch: {model_state_dict[k].shape} vs {v.shape}")
+                weights = state_dict[key].cpu().numpy() if hasattr(state_dict[key], 'cpu') else state_dict[key]
 
-    # 加载权重
-    for k, v in new_state_dict.items():
-        if isinstance(v, jt.Var):
-            model_state_dict[k].update(v)
-        else:
-            # 转换为Jittor数组
-            model_state_dict[k].update(jt.array(v))
+            # 检查形状
+            if param.shape == weights.shape:
+                param.update(jt.array(weights))
+                loaded_count += 1
+                print(f"  ✓ {name} -> {weights.shape}")
+            else:
+                print(f"  ✗ {name} shape mismatch: {param.shape} vs {weights.shape}")
 
-    print(f"Loaded {len(new_state_dict)}/{len(model_state_dict)} weights")
-
+    print(f"Loaded {loaded_count}/{len(model_params)} weights")
     return model
