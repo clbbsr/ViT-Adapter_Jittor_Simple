@@ -16,6 +16,15 @@ from data.transforms import SimpleTrainTransform
 from utils.load_deit import load_deit_weights
 
 
+if hasattr(jt, 'flags'):
+    # Jittor旧版本
+    HAS_AMP_SCOPE = hasattr(jt, 'amp_scope')
+    # Jittor新版本
+    HAS_AUTOCAST = hasattr(jt, 'autocast') or (hasattr(jt, 'amp') and hasattr(jt.amp, 'autocast'))
+else:
+    HAS_AMP_SCOPE = False
+    HAS_AUTOCAST = False
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Train Semantic FPN with ViT-Adapter')
     parser.add_argument('--data-root', type=str, default='data/ade/ADEChallengeData2016')
@@ -59,8 +68,19 @@ def train():
     # 设置设备
     jt.flags.use_cuda = 1
     if args.fp16:
-        jt.flags.amp_level = 2
-        print("✓ 启用混合精度训练 (FP16)")
+        if hasattr(jt, 'flags'):
+            jt.flags.amp_level = 2
+            print("✓ 启用混合精度训练 (通过 jt.flags.amp_level)")
+        elif HAS_AMP_SCOPE:
+            print("✓ 启用混合精度训练 (支持 amp_scope)")
+        elif HAS_AUTOCAST:
+            print("✓ 启用混合精度训练 (支持 autocast)")
+        else:
+            print("⚠️ 当前Jittor版本不支持混合精度，将使用FP32训练")
+            args.fp16 = False
+    else:
+        if hasattr(jt, 'flags'):
+            jt.flags.amp_level = 0
 
     print("=" * 50)
     print("ViT-Adapter 超快速训练")
@@ -147,8 +167,23 @@ def train():
             lr_scale = min(1., (iter_idx + 1) / args.warmup_iters)
             optimizer.lr = args.lr * lr_scale
 
-        # 前向传播
-        with jt.amp_scope(level=2 if args.fp16 else 0):
+        # 前向传播 - 根据Jittor版本选择不同方式
+        if args.fp16:
+            if HAS_AUTOCAST:
+                # Jittor新版本
+                with jt.amp.autocast():
+                    outputs = model(images)
+                    loss = criterion(outputs, targets)
+            elif HAS_AMP_SCOPE:
+                # Jittor旧版本
+                with jt.amp_scope(level=2):
+                    outputs = model(images)
+                    loss = criterion(outputs, targets)
+            else:
+                # 已经通过flags设置了amp_level
+                outputs = model(images)
+                loss = criterion(outputs, targets)
+        else:
             outputs = model(images)
             loss = criterion(outputs, targets)
 
