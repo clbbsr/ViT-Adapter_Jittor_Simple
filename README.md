@@ -7,8 +7,6 @@
 在资源有限的情况下验证代码正确性
 完整经历从论文到代码的实现过程
 
-环境配置
-bash
 # 克隆仓库
 git clone https://github.com/yourusername/ViT-Adapter_Jittor_Simple.git
 cd ViT-Adapter_Jittor_Simple
@@ -16,8 +14,6 @@ cd ViT-Adapter_Jittor_Simple
 # 验证 Jittor 安装
 python -c "import jittor as jt; print(f'Jittor版本: {jt.__version__}')"
 
-数据准备
-bash
 # 创建数据目录
 mkdir -p data/ade
 
@@ -27,8 +23,6 @@ aria2c -x 16 -s 16 http://data.csail.mit.edu/places/ADEchallenge/ADEChallengeDat
 unzip -q ADEChallengeData2016.zip
 cd ../..
 
-快速验证
-bash
 # 运行100次迭代验证代码正确性
 python -m utils.train \
     --data-root data/ade/ADEChallengeData2016 \
@@ -37,8 +31,6 @@ python -m utils.train \
     --total-iters 100 \
     --work-dir work_dirs/quick_test
     
-训练模型
-bash
 # 快速训练配置
 python -m utils.train \
     --data-root data/ade/ADEChallengeData2016 \
@@ -49,8 +41,6 @@ python -m utils.train \
     --fp16 \
     --work-dir work_dirs/vit_adapter_run
     
-测试模型
-bash
 # 单张图片测试
 python -m utils.test \
     --checkpoint work_dirs/vit_adapter_run/final.pkl \
@@ -66,3 +56,4 @@ python -m utils.test \
 推理时间：1.67 秒/张（224×224）
 模型大小：约 30MB
 虽然精度有限（mIoU 约 30%），但模型确实学到了语义信息，验证了方法的可行性。
+
